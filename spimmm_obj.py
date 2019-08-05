@@ -202,7 +202,7 @@ class SPIMMM:
 
     slp = -2222
 
-    off = 14324
+    off = 0
 
     dup = 6.4
 
@@ -241,7 +241,7 @@ class SPIMMM:
     las2.timeout = 5
     las2.port = 'COM41'
 
-# objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# threading objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     camera_halt = threading.Event()
 
@@ -329,36 +329,53 @@ class SPIMMM:
         # the Coherent laser only takes arguments up to the nearest mW,
         # this will also cause an error if anything but a number comes in
         if self.las1.isOpen():
-            power1 = round(self.pwr1, 3)
-            self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
+            try:
+                power1 = round(self.pwr1, 3)
+                self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
+            except TypeError:
+                print('488nm laser power set incorrectly')
             if self.lst1:
                 self.las1.write('SOUR:AM:STAT ON\r')
             else:
                 self.las1.write('SOUR:AM:STAT OFF\r')
+        else:
+            print('488nm laser not connected')
 
         if self.las2.isOpen():
-            power2 = round(self.pwr2, 3)
-            self.las2.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
+            try:
+                power2 = round(self.pwr2, 3)
+                self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
+            except TypeError:
+                print('561nm laser power set incorrectly')
             if self.lst2:
                 self.las2.write('SOUR:AM:STAT ON\r')
             else:
                 self.las2.write('SOUR:AM:STAT OFF\r')
+        else:
+            print('561nm laser not connected')
 
 # move mirror ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def mirror(self, count):
         # only integers are permitted,
         # this will also cause an error if anything but a number comes in
-        count = int(count)
-        self.ard.write('DAC ' + str(count) + '\r')
+        try:
+            count = int(count)
+            self.ard.write('DAC ' + str(count) + '\r')
+        except ValueError:
+            print('mirror value set incorrectly')
+
 
 # move stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def stage(self, position):
         # the PI stage only takes arguments up to the nearest nanometer,
         # this will also cause an error if anything but a number comes in
-        position = round(position, 6)
-        self.ard.write('STA ' + str(position) + '\r')
+        try:
+            position = round(position, 6)
+            self.ard.write('STA ' + str(position) + '\r')
+        except TypeError:
+            print('stage value set incorrectly')
 
 # halt stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -376,8 +393,11 @@ class SPIMMM:
 
     def frame(self, length):
         # only integers are permitted, this will also cause an error if anything but a number comes in
-        length = int(length)
-        self.ard.write('FRM ' + str(length) + '\r')
+        try:
+            length = int(length)
+            self.ard.write('FRM ' + str(length) + '\r')
+        except ValueError:
+            print('frame length set incorrectly')
 
 # move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -408,9 +428,7 @@ class SPIMMM:
         resp = self.ard.readline()
         print(resp)
 
-    #    print(toc-tic)
-
-# reset error state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def err(self):
         self.ard.write('ERR\r')
@@ -532,7 +550,6 @@ class SPIMMM:
 
 # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # note that the sleep parameter includes the exposure time
-
 
 def actcam(self):
     print('camera started')

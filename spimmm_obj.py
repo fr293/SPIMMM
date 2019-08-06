@@ -787,6 +787,3 @@ def halttest(self):
             print('test thread halted')
         else:
             print('warning: flag not set')
-
-
-#

@@ -56,6 +56,8 @@ import threading
 #
 # ste - the distance travelled by the stage in a small move as used for volume imaging, in mm
 #
+# pos - the stage position in mm
+#
 # imt - imaging time in seconds
 #
 # vrt - time between volumes in seconds
@@ -209,6 +211,8 @@ class SPIMMM:
     dlo = 5.9
 
     ste = 0.005
+
+    pos = 0.0
 
     imt = 30
 

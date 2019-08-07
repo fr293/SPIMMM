@@ -74,7 +74,15 @@ import threading
 #
 # lst2 - the 561nm laser state on or off
 #
+# cur1 -
 #
+# cur2 -
+#
+# cur3 -
+#
+# cur4 -
+#
+# led -
 # serial objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # ard - arduino COM port; the COM port that the OS assigns to the arduino,
@@ -171,6 +179,7 @@ class SPIMMM:
         # clear the startup string received from the arduino
         self.ard.readline()
         self.sendcfg()
+        self.get_pos()
         self.laser_power()
 
     # variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,6 +397,14 @@ class SPIMMM:
         except TypeError:
             print('stage value set incorrectly')
 
+    # get stage position ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def get_pos(self):
+        # return the position of the PI stage in mm
+        self.ard.write('QRP\r')
+        resp = self.ard.readline()
+        self.pos = float(resp)
+
     # halt stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def hlt(self):
@@ -399,6 +416,7 @@ class SPIMMM:
     def rbt(self):
         # trigger the reboot command on the PI stage
         self.ard.write('RBT ' + '\r')
+
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

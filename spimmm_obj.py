@@ -74,15 +74,15 @@ import threading
 #
 # lst2 - the 561nm laser state on or off
 #
-# cur1 -
+# cur1 - the first coil's current value in mA
 #
-# cur2 -
+# cur2 - the first coil's current value in mA
 #
-# cur3 -
+# cur3 - the first coil's current value in mA
 #
-# cur4 -
+# cur4 - the first coil's current value in mA
 #
-# led -
+# led - the white led's intensity value 0-1023
 # serial objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # ard - arduino COM port; the COM port that the OS assigns to the arduino,
@@ -144,6 +144,14 @@ import threading
 # rdh - read the heater parameters from the heater
 #
 # clt - control the temperature
+#
+# setmag - set the current value of a magnet channel
+#
+# setled - set the led intensity value
+#
+# readmag - read the magnet controller status
+#
+# trigmag - trigger the magnet controller on or off in software
 #
 # actcam - not to be used directly, this is a function that runs the camera hardware
 #
@@ -242,6 +250,16 @@ class SPIMMM:
     lst1 = False
 
     lst2 = False
+
+    cur1 = 0.0
+
+    cur2 = 0.0
+
+    cur3 = 0.0
+
+    cur4 = 0.0
+
+    led = 0
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -384,7 +402,7 @@ class SPIMMM:
             count = int(count)
             self.ard.write('DAC ' + str(count) + '\r')
         except ValueError:
-            print('mirror value set incorrectly')
+            print('error: mirror value not an int')
 
     # move stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -393,9 +411,18 @@ class SPIMMM:
         # this will also cause an error if anything but a number comes in
         try:
             position = round(position, 6)
-            self.ard.write('STA ' + str(position) + '\r')
+            if abs(position) > 6.4:
+                print('error: position out of bounds')
+                return
+            distance = abs(position - self.pos)
+            self.pos = position
+            # if the distance is over 10 microns, move slowly, otherwise move fast
+            if distance >= 0.010:
+                self.ard.write('STS ' + str(self.pos) + '\r')
+            else:
+                self.ard.write('STA ' + str(self.pos) + '\r')
         except TypeError:
-            print('stage value set incorrectly')
+            print('error: position value not a float')
 
     # get stage position ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -416,7 +443,6 @@ class SPIMMM:
     def rbt(self):
         # trigger the reboot command on the PI stage
         self.ard.write('RBT ' + '\r')
-
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -575,6 +601,29 @@ class SPIMMM:
         # send the parameters and push to the heater
         self.sendcfg()
         self.sdh()
+
+
+# set a current channel ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def setmag(self):
+
+
+
+# set the white led intensity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def setled(self):
+
+
+
+# read the magnet system state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def readmag(self):
+
+
+
+# trigger the magnet controller in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def trigmag(self):
 
 
 # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

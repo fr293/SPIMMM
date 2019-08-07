@@ -40,6 +40,10 @@ import threading
 #
 # tki - integral control constant for the temperature control module
 #
+# ers - total error for the heater controller
+#
+# ont - boolean value indicating if the temperature controller is on target
+#
 # tst - engage temperature step mode
 #
 # lgp - the logging period for temperature logging
@@ -169,7 +173,7 @@ class SPIMMM:
         self.sendcfg()
         self.laser_power()
 
-# variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     dbg = True
 
     smt = 20
@@ -195,6 +199,10 @@ class SPIMMM:
     tkpc = 600
 
     tki = 1.5
+
+    ers = 0
+
+    ont = False
 
     tst = False
 
@@ -226,9 +234,9 @@ class SPIMMM:
 
     lst2 = False
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# serial objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # serial objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     ard = serial.Serial()
     ard.baudrate = 115200
@@ -245,7 +253,7 @@ class SPIMMM:
     las2.timeout = 5
     las2.port = 'COM41'
 
-# threading objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # threading objects ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     camera_halt = threading.Event()
 
@@ -275,7 +283,7 @@ class SPIMMM:
 
     seriallock = threading.Lock()
 
-# functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def open_ports(self):
         if not self.ard.isOpen():
@@ -305,7 +313,7 @@ class SPIMMM:
         self.las1.close()
         self.las2.close()
 
-# send and read configuration parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # send and read configuration parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sendcfg(self):
         self.ard.write('SET ' + str(self.smt) + ' ' + str(self.frt) + ' ' + str(self.exp) + ' ' + str(self.htm) + ' '
@@ -327,7 +335,7 @@ class SPIMMM:
         print(self.ard.readline())
         print(self.ard.readline())
 
-# set laser power and update state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # set laser power and update state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def laser_power(self):
         # the Coherent laser only takes arguments up to the nearest mW,
@@ -358,7 +366,7 @@ class SPIMMM:
         else:
             print('561nm laser not connected')
 
-# move mirror ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # move mirror ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def mirror(self, count):
         # only integers are permitted,
@@ -369,8 +377,7 @@ class SPIMMM:
         except ValueError:
             print('mirror value set incorrectly')
 
-
-# move stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # move stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def stage(self, position):
         # the PI stage only takes arguments up to the nearest nanometer,
@@ -381,19 +388,19 @@ class SPIMMM:
         except TypeError:
             print('stage value set incorrectly')
 
-# halt stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # halt stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def hlt(self):
         # trigger the halt command on the PI stage
         self.ard.write('STP ' + '\r')
 
-# reboot stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # reboot stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def rbt(self):
         # trigger the reboot command on the PI stage
         self.ard.write('RBT ' + '\r')
 
-# take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def frame(self, length):
         # only integers are permitted, this will also cause an error if anything but a number comes in
@@ -403,20 +410,20 @@ class SPIMMM:
         except ValueError:
             print('frame length set incorrectly')
 
-# move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def focus(self, location):
         self.stage(location)
         self.mirror(self.stm(location))
 
-# calculate mirror count for focus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # calculate mirror count for focus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def stm(self, stage_dist):
         mirror_count = (stage_dist * self.slp) + self.off
 
         return mirror_count
 
-# extrapolate conservative estimate of large stage movement time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # extrapolate conservative estimate of large stage movement time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def pau(self, stage_move):
         pause = self.smt * (stage_move / self.ste)
@@ -424,7 +431,7 @@ class SPIMMM:
 
         return pause
 
-# take a volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # take a volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def tkv(self):
         self.ard.flushInput()
@@ -432,17 +439,17 @@ class SPIMMM:
         resp = self.ard.readline()
         print(resp)
 
-# reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def err(self):
         self.ard.write('ERR\r')
 
-# push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sdh(self):
         self.ard.write('STH\r')
 
-# read heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # read heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def rdh(self):
         self.ard.flushInput()
@@ -455,27 +462,25 @@ class SPIMMM:
             time.sleep(0.1)
             self.rdh()
 
-# read heater parameters and control temperature~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # read heater parameters and control temperature~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def clt(self):
-        global errorsum
-        global ontarget
 
-#   count is the number of polling periods that the bath must within +- 1 degree of the set point to be on target
-#   maxsig is the maximum signal that can be sent to the temperature driver board
-#   coolingfactor is the proportion of maximum power that can be applied in cooling mode
+        # count is the number of polling periods that the bath must within +- 1 degree of the set point to be on
+        # target
+        # maxsig is the maximum signal that can be sent to the temperature driver board coolingfactor is the
+        # proportion of maximum power that can be applied in cooling mode
 
         count = 100
         maxsig = 799
         coolingfactor = 0.75
 
-        maxerrorsum = maxsig / self.tki
+        maxers = maxsig / self.tki
 
-#   extract measured temperature from readout
-#   we may want to refactor the extraction as a function that takes a keyword and a string, and returns the value of the
-#   argument after it, though given that we're dealing with mixed data types, this might be more difficult than it is
-#   useful
-#    paramstring = "$HC,MODE,1,PWM,400,TEMP,26.5,END"
+        # extract measured temperature from readout we may want to refactor the extraction as a function that takes a
+        # keyword and a string, and returns the value of the argument after it, though given that we're dealing with
+        # mixed data types, this might be more difficult than it is useful paramstring = "$HC,MODE,1,PWM,400,TEMP,
+        # 26.5,END"
 
         paramstring = self.tcr
         kwtemp = [match.start() for match in re.finditer(re.escape('TEMP'), paramstring)]
@@ -492,35 +497,36 @@ class SPIMMM:
         # calculate the error and set the parameters
         temperror = self.tem - tempm
 
-# this block checks to see if the controller is on target by checking if the temperature has gone out of range recently
+        # this block checks to see if the controller is on target by checking if the temperature has gone out of
+        # range recently
 
         if abs(temperror) <= 1:
             count = count - 1
             if count <= 0:
                 count = 1
-            ontarget = True
+            self.ont = True
         else:
             count = 10
-            ontarget = False
+            self.ont = False
 
-# block to prevent integrator wind-up
+        # block to prevent integrator wind-up
 
         if abs(temperror) < 8:
-            errorsum = errorsum + (temperror * self.ttc)
+            self.ers = self.ers + (temperror * self.ttc)
         else:
-            errorsum = 0
+            self.ers = 0
 
-        if errorsum > maxerrorsum:
-            errorsum = maxerrorsum
-        elif errorsum < 0:
-            errorsum = 0
+        if self.ers > maxers:
+            self.ers = maxers
+        elif self.ers < 0:
+            self.ers = 0
 
         if self.tst:
             signal = 500
         elif temperror < 0:
-            signal = (temperror * self.tkpc) + (errorsum * self.tki)
+            signal = (temperror * self.tkpc) + (self.ers * self.tki)
         else:
-            signal = (temperror * self.tkp) + (errorsum * self.tki)
+            signal = (temperror * self.tkp) + (self.ers * self.tki)
 
         if signal > maxsig:
             signal = maxsig
@@ -540,17 +546,18 @@ class SPIMMM:
         if self.dbg:
             print('demand temperature: ' + str(self.tem) + ', ' + 'measured temperature: ' + str(tempm))
             print('proportional signal: ' + str(temperror * self.tkp) + ', ' + 'integral signal: '
-                  + str((errorsum * self.tki)))
+                  + str((self.ers * self.tki)))
             print('signal: ' + str(signal) + ', ' + 'heater power: ' + str(self.hpw) + ', ' + 'heater mode: ' + str(
                 self.htm))
-            if ontarget:
+            if self.ont:
                 print('on target')
 
-# set the peltier duty cycle and throttle down to the maximum set above
+        # set the peltier duty cycle and throttle down to the maximum set above
 
         # send the parameters and push to the heater
         self.sendcfg()
         self.sdh()
+
 
 # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # note that the sleep parameter includes the exposure time
@@ -566,7 +573,7 @@ def actcam(self):
         time.sleep(self.frt - (0.001 * self.exp))
 
 
-def startcam(self):
+def startcam():
     global camera
     if camera.isAlive():
         print('warning: thread already running')
@@ -599,7 +606,7 @@ def actvol(self):
         self.seriallock.release()
 
 
-def startvol(self):
+def startvol():
     global volume
     if volume.isAlive():
         print('warning: thread already running')
@@ -622,8 +629,8 @@ def haltvol(self):
 # run temperature control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def acttempcont(self):
-    if not temppoll.isAlive():
-        starttemppoll()
+    if not self.temppoll.isAlive():
+        starttemppoll(self)
 
     while not self.data_in.isSet():
         print('waiting for data')
@@ -639,17 +646,16 @@ def acttempcont(self):
 
 
 def starttempcont(self):
-    global tempcont
-    if tempcont.isAlive():
+    if self.tempcont.isAlive():
         print('warning: thread already running')
     else:
-        self.errorsum = 0
+        self.ers = 0
         tempcont = threading.Thread(name='tempcont', target=acttempcont)
         tempcont.start()
 
 
 def halttempcont(self):
-    if not tempcont.isAlive():
+    if not self.tempcont.isAlive():
         print('warning: temperature control not running')
     else:
         if not self.tempcont_halt.isSet():
@@ -659,7 +665,7 @@ def halttempcont(self):
         else:
             print('warning: flag not set')
 
-# shut the heater controller down
+        # shut the heater controller down
         self.htm = 0
         self.fnm = 0
         self.seriallock.acquire()
@@ -671,8 +677,8 @@ def halttempcont(self):
 # run temperature logging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def acttemplog(self):
-    if not temppoll.isAlive():
-        starttemppoll()
+    if not self.temppoll.isAlive():
+        starttemppoll(self)
 
     while not self.data_in.isSet():
         print('waiting for data')
@@ -694,9 +700,8 @@ def acttemplog(self):
     templogfile.close()
 
 
-def starttemplog():
-    global templog
-    if templog.isAlive():
+def starttemplog(self):
+    if self.templog.isAlive():
         print('warning: thread already running')
     else:
         templog = threading.Thread(name='templog', target=acttemplog)
@@ -704,7 +709,7 @@ def starttemplog():
 
 
 def halttemplog(self):
-    if not templog.isAlive():
+    if not self.templog.isAlive():
         print('warning: temperature logging not running')
     else:
         if not self.templog_halt.isSet():
@@ -740,8 +745,7 @@ def acttemppoll(self):
 
 
 def starttemppoll(self):
-    global temppoll
-    if temppoll.isAlive():
+    if self.temppoll.isAlive():
         print('warning: thread already running')
     else:
         self.temppoll = threading.Thread(name='temppoll', target=acttemppoll)
@@ -750,7 +754,7 @@ def starttemppoll(self):
 
 
 def halttemppoll(self):
-    if not temppoll.isAlive():
+    if not self.temppoll.isAlive():
         print('warning: temperature polling not running')
     else:
         if not self.temppoll_halt.isSet():
@@ -770,8 +774,7 @@ def acttest(self):
 
 
 def starttest(self):
-    global test
-    if test.isAlive():
+    if self.test.isAlive():
         print('warning: thread already running')
     else:
         test = threading.Thread(name='test', target=acttest)
@@ -779,7 +782,7 @@ def starttest(self):
 
 
 def halttest(self):
-    if not test.isAlive():
+    if not self.test.isAlive():
         print('warning: test thread not running')
     else:
         if not self.test_halt.isSet():

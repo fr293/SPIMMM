@@ -145,7 +145,7 @@ import threading
 #
 # clt - control the temperature
 #
-# setmag - set the current value of a magnet channel
+# setmag - set the current value of all magnet channels, note that this also requires a hard or soft trigger
 #
 # setled - set the led intensity value
 #
@@ -251,13 +251,13 @@ class SPIMMM:
 
     lst2 = False
 
-    cur1 = 0.0
+    cur1 = 0
 
-    cur2 = 0.0
+    cur2 = 0
 
-    cur3 = 0.0
+    cur3 = 0
 
-    cur4 = 0.0
+    cur4 = 0
 
     led = 0
 
@@ -343,13 +343,33 @@ class SPIMMM:
     # send and read configuration parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sendcfg(self):
-        self.ard.write('SET ' + str(self.smt) + ' ' + str(self.frt) + ' ' + str(self.exp) + ' ' + str(self.htm) + ' '
-                       + str(self.hpw) + ' ' + str(self.fnm) + ' ' + str(self.slp) + ' ' + str(self.off) + ' '
-                       + str(self.dup) + ' ' + str(self.dlo) + ' ' + str(self.ste) + '\r')
+        self.ard.write(
+            'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\r'.format(str(self.smt),
+                                                                                                 str(self.frt),
+                                                                                                 str(self.exp),
+                                                                                                 str(self.htm),
+                                                                                                 str(self.hpw),
+                                                                                                 str(self.fnm),
+                                                                                                 str(self.cur1),
+                                                                                                 str(self.cur2),
+                                                                                                 str(self.cur3),
+                                                                                                 str(self.cur4),
+                                                                                                 str(self.led),
+                                                                                                 str(self.slp),
+                                                                                                 str(self.off),
+                                                                                                 str(self.dup),
+                                                                                                 str(self.dlo),
+                                                                                                 str(self.ste)))
 
     def readcfg(self):
         self.ard.flushInput()
         self.ard.write('REP\r')
+        print(self.ard.readline())
+        print(self.ard.readline())
+        print(self.ard.readline())
+        print(self.ard.readline())
+        print(self.ard.readline())
+        print(self.ard.readline())
         print(self.ard.readline())
         print(self.ard.readline())
         print(self.ard.readline())
@@ -371,6 +391,8 @@ class SPIMMM:
             try:
                 power1 = round(self.pwr1, 3)
                 self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
+                self.las1.write('SYST:INF:AMOD:TYP 2\r')
+                self.las1.write('SOUR:AM:EXT:ANAL\r')
             except TypeError:
                 print('488nm laser power set incorrectly')
             if self.lst1:
@@ -383,7 +405,9 @@ class SPIMMM:
         if self.las2.isOpen():
             try:
                 power2 = round(self.pwr2, 3)
-                self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
+                self.las2.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
+                self.las2.write('SYST:INF:AMOD:TYP 2\r')
+                self.las2.write('SOUR:AM:EXT:ANAL\r')
             except TypeError:
                 print('561nm laser power set incorrectly')
             if self.lst2:
@@ -446,11 +470,12 @@ class SPIMMM:
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def frame(self, length):
+    def frame(self, cam, length):
         # only integers are permitted, this will also cause an error if anything but a number comes in
         try:
+            cam = int(cam)
             length = int(length)
-            self.ard.write('FRM ' + str(length) + '\r')
+            self.ard.write('FRM ' + str(cam) + ' ' + str(length) + '\r')
         except ValueError:
             print('frame length set incorrectly')
 
@@ -603,39 +628,43 @@ class SPIMMM:
         self.sdh()
 
 
-# set a current channel ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# set the current channels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def setmag(self):
-
+    self.ard.write('STM\r')
 
 
 # set the white led intensity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def setled(self):
-
+    self.ard.write('LON\r')
 
 
 # read the magnet system state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def readmag(self):
+    self.ard.write('RDM\r')
 
 
+# trigger the magnet controller on or off in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# trigger the magnet controller in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def trigmag(self):
+def trigmag(self, trigger=0):
+    if trigger:
+        self.ard.write('TRS\r')
+    else:
+        self.ard.write('KLS\r')
 
 
 # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # note that the sleep parameter includes the exposure time
 
-def actcam(self):
+def actcam(self, cam):
     print('camera started')
 
     self.camera_halt.clear()
     while not self.camera_halt.isSet():
         self.seriallock.acquire()
-        self.frame(self.exp)
+        self.frame(cam, self.exp)
         self.seriallock.release()
         time.sleep(self.frt - (0.001 * self.exp))
 

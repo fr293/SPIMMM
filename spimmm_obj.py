@@ -343,6 +343,7 @@ class SPIMMM:
     # send and read configuration parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sendcfg(self):
+        self.seriallock.acquire()
         self.ard.write(
             'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\r'.format(str(self.smt),
                                                                                                  str(self.frt),
@@ -360,9 +361,11 @@ class SPIMMM:
                                                                                                  str(self.dup),
                                                                                                  str(self.dlo),
                                                                                                  str(self.ste)))
+        self.seriallock.release()
 
     def readcfg(self):
         self.ard.flushInput()
+        self.seriallock.acquire()
         self.ard.write('REP\r')
         print(self.ard.readline())
         print(self.ard.readline())
@@ -381,6 +384,7 @@ class SPIMMM:
         print(self.ard.readline())
         print(self.ard.readline())
         print(self.ard.readline())
+        self.seriallock.release()
 
     # set laser power and update state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -390,6 +394,7 @@ class SPIMMM:
         if self.las1.isOpen():
             try:
                 power1 = round(self.pwr1, 3)
+
                 self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
                 self.las1.write('SYST:INF:AMOD:TYP 2\r')
                 self.las1.write('SOUR:AM:EXT:ANAL\r')
@@ -424,7 +429,9 @@ class SPIMMM:
         # this will also cause an error if anything but a number comes in
         try:
             count = int(count)
+            self.seriallock.acquire()
             self.ard.write('DAC ' + str(count) + '\r')
+            self.seriallock.release()
         except ValueError:
             print('error: mirror value not an int')
 
@@ -441,10 +448,12 @@ class SPIMMM:
             distance = abs(position - self.pos)
             self.pos = position
             # if the distance is over 10 microns, move slowly, otherwise move fast
+            self.seriallock.acquire()
             if distance >= 0.010:
                 self.ard.write('STS ' + str(self.pos) + '\r')
             else:
                 self.ard.write('STA ' + str(self.pos) + '\r')
+            self.seriallock.release()
         except TypeError:
             print('error: position value not a float')
 
@@ -452,7 +461,9 @@ class SPIMMM:
 
     def get_pos(self):
         # return the position of the PI stage in mm
+        self.seriallock.acquire()
         self.ard.write('QRP\r')
+        self.seriallock.release()
         resp = self.ard.readline()
         self.pos = float(resp)
 
@@ -460,13 +471,17 @@ class SPIMMM:
 
     def hlt(self):
         # trigger the halt command on the PI stage
+        self.seriallock.acquire()
         self.ard.write('STP ' + '\r')
+        self.seriallock.release()
 
     # reboot stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def rbt(self):
         # trigger the reboot command on the PI stage
+        self.seriallock.acquire()
         self.ard.write('RBT ' + '\r')
+        self.seriallock.release()
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -475,7 +490,9 @@ class SPIMMM:
         try:
             cam = int(cam)
             length = int(length)
+            self.seriallock.acquire()
             self.ard.write('FRM ' + str(cam) + ' ' + str(length) + '\r')
+            self.seriallock.release()
         except ValueError:
             print('frame length set incorrectly')
 
@@ -504,25 +521,33 @@ class SPIMMM:
 
     def tkv(self):
         self.ard.flushInput()
+        self.seriallock.acquire()
         self.ard.write('RUN\r')
+        self.seriallock.release()
         resp = self.ard.readline()
         print(resp)
 
     # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def err(self):
+        self.seriallock.acquire()
         self.ard.write('ERR\r')
+        self.seriallock.release()
 
     # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sdh(self):
+        self.seriallock.acquire()
         self.ard.write('STH\r')
+        self.seriallock.release()
 
     # read heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def rdh(self):
         self.ard.flushInput()
+        self.seriallock.acquire()
         self.ard.write('RDH\r')
+        self.seriallock.release()
         resp = self.ard.readline()
         if 'END' in resp:
             return resp
@@ -631,28 +656,36 @@ class SPIMMM:
 # set the current channels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def setmag(self):
+    self.seriallock.acquire()
     self.ard.write('STM\r')
+    self.seriallock.release()
 
 
 # set the white led intensity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def setled(self):
+    self.seriallock.acquire()
     self.ard.write('LON\r')
+    self.seriallock.release()
 
 
 # read the magnet system state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def readmag(self):
+    self.seriallock.release()
     self.ard.write('RDM\r')
+    self.seriallock.release()
 
 
 # trigger the magnet controller on or off in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def trigmag(self, trigger=0):
+    self.seriallock.acquire()
     if trigger:
         self.ard.write('TRS\r')
     else:
         self.ard.write('KLS\r')
+    self.seriallock.release()
 
 
 # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -663,9 +696,9 @@ def actcam(self, cam):
 
     self.camera_halt.clear()
     while not self.camera_halt.isSet():
-        self.seriallock.acquire()
+        # self.seriallock.acquire()
         self.frame(cam, self.exp)
-        self.seriallock.release()
+        # self.seriallock.release()
         time.sleep(self.frt - (0.001 * self.exp))
 
 
@@ -697,9 +730,9 @@ def actvol(self):
     print('microscope running')
     self.volume_halt.clear()
     while not self.volume_halt.isSet():
-        self.seriallock.acquire()
+        # self.seriallock.acquire()
         self.tkv()
-        self.seriallock.release()
+        # self.seriallock.release()
 
 
 def startvol():
@@ -735,9 +768,9 @@ def acttempcont(self):
     print('temperature control running')
     self.tempcont_halt.clear()
     while not self.tempcont_halt.isSet():
-        self.seriallock.acquire()
+        # self.seriallock.acquire()
         self.clt()
-        self.seriallock.release()
+        # self.seriallock.release()
         time.sleep(self.ttc)
 
 
@@ -764,10 +797,10 @@ def halttempcont(self):
         # shut the heater controller down
         self.htm = 0
         self.fnm = 0
-        self.seriallock.acquire()
+        # self.seriallock.acquire()
         self.sendcfg()
         self.sdh()
-        self.seriallock.release()
+        # self.seriallock.release()
 
 
 # run temperature logging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -832,9 +865,9 @@ def acttemppoll(self):
 
     self.temppoll_halt.clear()
     while not self.temppoll_halt.isSet():
-        self.seriallock.acquire()
+        # self.seriallock.acquire()
         self.tcr = self.rdh()
-        self.seriallock.release()
+        # self.seriallock.release()
         self.data_in.set()
         time.sleep(self.plp)
     self.data_in.clear()

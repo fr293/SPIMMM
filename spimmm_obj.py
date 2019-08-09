@@ -125,6 +125,10 @@ import threading
 #
 # rbt - reboots the stage by communicating with the arduino
 #
+# engage - engages the stage by communicating with the arduino
+#
+# disengage - disengages the stage by communicating with the arduino
+#
 # hlt - halts the stage by communicating with the arduino
 #
 # frame - takes an exposure time in ms and commands the camera to take a frame by communicating with the arduino
@@ -483,7 +487,7 @@ class SPIMMM:
         self.ard.write('RBT ' + '\r')
         self.seriallock.release()
 
-    # reboot stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # engage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def engage(self):
         # trigger the reboot command on the PI stage
@@ -492,6 +496,14 @@ class SPIMMM:
         resp = self.ard.readline()
         self.seriallock.release()
         print(resp)
+
+    # disengage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def disengage(self):
+        # trigger the reboot command on the PI stage
+        self.seriallock.acquire()
+        self.ard.write('DNG ' + '\r')
+        self.seriallock.release()
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

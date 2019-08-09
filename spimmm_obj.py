@@ -405,7 +405,7 @@ class SPIMMM:
             else:
                 self.las1.write('SOUR:AM:STAT OFF\r')
         else:
-            print('488nm laser not connected')
+            print('error: 488nm laser not connected')
 
         if self.las2.isOpen():
             try:
@@ -420,7 +420,7 @@ class SPIMMM:
             else:
                 self.las2.write('SOUR:AM:STAT OFF\r')
         else:
-            print('561nm laser not connected')
+            print('error: 561nm laser not connected')
 
     # move mirror ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -482,6 +482,16 @@ class SPIMMM:
         self.seriallock.acquire()
         self.ard.write('RBT ' + '\r')
         self.seriallock.release()
+
+    # reboot stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def engage(self):
+        # trigger the reboot command on the PI stage
+        self.seriallock.acquire()
+        self.ard.write('ENG ' + '\r')
+        resp = self.ard.readline()
+        self.seriallock.release()
+        print(resp)
 
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

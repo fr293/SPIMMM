@@ -493,9 +493,8 @@ class SPIMMM:
         # trigger the reboot command on the PI stage
         self.seriallock.acquire()
         self.ard.write('ENG ' + '\r')
-        resp = self.ard.readline()
         self.seriallock.release()
-        print(resp)
+
 
     # disengage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -528,7 +527,6 @@ class SPIMMM:
 
     def stm(self, stage_dist):
         mirror_count = (stage_dist * self.slp) + self.off
-
         return mirror_count
 
     # extrapolate conservative estimate of large stage movement time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -536,7 +534,6 @@ class SPIMMM:
     def pau(self, stage_move):
         pause = self.smt * (stage_move / self.ste)
         pause = round(pause, 6)
-
         return pause
 
     # take a volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -554,7 +551,9 @@ class SPIMMM:
     def err(self):
         self.seriallock.acquire()
         self.ard.write('ERR\r')
+        resp = self.ard.readline()
         self.seriallock.release()
+        print(resp)
 
     # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

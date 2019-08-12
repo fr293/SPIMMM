@@ -675,6 +675,11 @@ def readmag(self):
     self.seriallock.release()
     self.ard.write('RDM\r')
     self.seriallock.release()
+    resp = self.ard.readline()
+    if 'END' in resp:
+        return resp
+    else:
+        print('magnet poll error')
 
 
 # trigger the magnet controller on or off in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

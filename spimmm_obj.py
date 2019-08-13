@@ -125,6 +125,10 @@ import threading
 #
 # rbt - reboots the stage by communicating with the arduino
 #
+# engage - engages the stage by communicating with the arduino
+#
+# disengage - disengages the stage by communicating with the arduino
+#
 # hlt - halts the stage by communicating with the arduino
 #
 # frame - takes an exposure time in ms and commands the camera to take a frame by communicating with the arduino
@@ -405,7 +409,7 @@ class SPIMMM:
             else:
                 self.las1.write('SOUR:AM:STAT OFF\r')
         else:
-            print('488nm laser not connected')
+            print('error: 488nm laser not connected')
 
         if self.las2.isOpen():
             try:
@@ -420,7 +424,7 @@ class SPIMMM:
             else:
                 self.las2.write('SOUR:AM:STAT OFF\r')
         else:
-            print('561nm laser not connected')
+            print('error: 561nm laser not connected')
 
     # move mirror ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -483,6 +487,23 @@ class SPIMMM:
         self.ard.write('RBT ' + '\r')
         self.seriallock.release()
 
+    # engage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def engage(self):
+        # trigger the reboot command on the PI stage
+        self.seriallock.acquire()
+        self.ard.write('ENG ' + '\r')
+        self.seriallock.release()
+
+
+    # disengage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def disengage(self):
+        # trigger the reboot command on the PI stage
+        self.seriallock.acquire()
+        self.ard.write('DNG ' + '\r')
+        self.seriallock.release()
+
     # take frame ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def frame(self, cam, length):
@@ -506,7 +527,6 @@ class SPIMMM:
 
     def stm(self, stage_dist):
         mirror_count = (stage_dist * self.slp) + self.off
-
         return mirror_count
 
     # extrapolate conservative estimate of large stage movement time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -514,7 +534,6 @@ class SPIMMM:
     def pau(self, stage_move):
         pause = self.smt * (stage_move / self.ste)
         pause = round(pause, 6)
-
         return pause
 
     # take a volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -532,7 +551,9 @@ class SPIMMM:
     def err(self):
         self.seriallock.acquire()
         self.ard.write('ERR\r')
+        resp = self.ard.readline()
         self.seriallock.release()
+        print(resp)
 
     # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

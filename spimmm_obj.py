@@ -553,7 +553,7 @@ class SPIMMM:
     # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def err(self):
-        self.ard.flush()
+        self.ard.flushInput()
         self.seriallock.acquire()
         self.ard.write('ERR\r')
         resp = self.ard.readline()

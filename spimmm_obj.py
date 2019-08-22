@@ -406,8 +406,10 @@ class SPIMMM:
                 print('488nm laser power set incorrectly')
             if self.lst1:
                 self.las1.write('SOUR:AM:STAT ON\r')
+                self.ard.write('STL 1 1\r')
             else:
                 self.las1.write('SOUR:AM:STAT OFF\r')
+                self.ard.write('STL 1 0\r')
         else:
             print('error: 488nm laser not connected')
 
@@ -421,8 +423,10 @@ class SPIMMM:
                 print('561nm laser power set incorrectly')
             if self.lst2:
                 self.las2.write('SOUR:AM:STAT ON\r')
+                self.ard.write('STL 2 1\r')
             else:
                 self.las2.write('SOUR:AM:STAT OFF\r')
+                self.ard.write('STL 2 0\r')
         else:
             print('error: 561nm laser not connected')
 
@@ -549,6 +553,7 @@ class SPIMMM:
     # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def err(self):
+        self.ard.flush()
         self.seriallock.acquire()
         self.ard.write('ERR\r')
         resp = self.ard.readline()

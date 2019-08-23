@@ -557,6 +557,7 @@ class SPIMMM:
         self.seriallock.acquire()
         self.ard.write('ERR\r')
         resp = self.ard.readline()
+        resp = resp + self.ard.readline()
         self.seriallock.release()
         print(resp)
 

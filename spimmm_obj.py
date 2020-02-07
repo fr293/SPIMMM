@@ -199,9 +199,9 @@ class SPIMMM:
 
     smt = 20
 
-    frt = 50
+    frt = 25
 
-    exp = 1
+    exp = 10
 
     tcr = ''
 
@@ -231,15 +231,17 @@ class SPIMMM:
 
     plp = 0.1
 
-    slp = -2222
+    slp = -4486.982
 
-    off = 0
+    posadj = 6.1
 
-    dup = 6.4
+    off = int(posadj*slp)
 
-    dlo = 5.9
+    dup = 6.3
 
-    ste = 0.005
+    dlo = 6.0
+
+    ste = 0.02
 
     pos = 0.0
 
@@ -264,6 +266,14 @@ class SPIMMM:
     cur4 = 0
 
     led = 0
+
+    camera2=4
+
+    num_frame=5
+
+    frame_period=500 #ms
+
+
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -347,9 +357,12 @@ class SPIMMM:
     # send and read configuration parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def sendcfg(self):
+
+
+
         self.seriallock.acquire()
         self.ard.write(
-            'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15}\r'.format(str(self.smt),
+            'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16} {17} {18}\r'.format(str(self.smt),
                                                                                                  str(self.frt),
                                                                                                  str(self.exp),
                                                                                                  str(self.htm),
@@ -364,13 +377,19 @@ class SPIMMM:
                                                                                                  str(self.off),
                                                                                                  str(self.dup),
                                                                                                  str(self.dlo),
-                                                                                                 str(self.ste)))
+                                                                                                 str(self.ste),
+                                                                                                    str(self.camera2),
+                                                                                                    str(self.num_frame),
+                                                                                                    str(self.frame_period)))
         self.seriallock.release()
 
     def readcfg(self):
         self.ard.flushInput()
         self.seriallock.acquire()
         self.ard.write('REP\r')
+        print(self.ard.readline())
+        print(self.ard.readline())
+        print(self.ard.readline())
         print(self.ard.readline())
         print(self.ard.readline())
         print(self.ard.readline())
@@ -397,36 +416,38 @@ class SPIMMM:
         # this will also cause an error if anything but a number comes in
         if self.las1.isOpen():
             try:
-                power1 = round(self.pwr1, 3)
-
-                self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
-                self.las1.write('SYST:INF:AMOD:TYP 2\r')
-                self.las1.write('SOUR:AM:EXT:ANAL\r')
+                if self.pwr1 > 0.0:
+                    power1 = round(self.pwr1, 3)
+                    print('488nm laser set to ' + str(power1 * 1000) + 'mW')
+                    self.las1.write('SOUR:AM:INT\r')
+                    self.las1.write('SOUR:POW:LEV:IMM:AMPL ' + str(power1) + ' \r')
+                else:
+                    print('488nm laser power must be positive')
             except TypeError:
                 print('488nm laser power set incorrectly')
             if self.lst1:
                 self.las1.write('SOUR:AM:STAT ON\r')
-                self.ard.write('STL 1 1\r')
             else:
                 self.las1.write('SOUR:AM:STAT OFF\r')
-                self.ard.write('STL 1 0\r')
         else:
             print('error: 488nm laser not connected')
 
         if self.las2.isOpen():
             try:
-                power2 = round(self.pwr2, 3)
-                self.las2.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
-                self.las2.write('SYST:INF:AMOD:TYP 2\r')
-                self.las2.write('SOUR:AM:EXT:ANAL\r')
+                if self.pwr2 > 0.0:
+
+                    power2 = round(self.pwr2, 3)
+                    print('561nm laser set to ' + str(power2 * 1000) + 'mW')
+                    self.las2.write('SOUR:AM:INT\r')
+                    self.las2.write('SOUR:POW:LEV:IMM:AMPL ' + str(power2) + ' \r')
+                else:
+                    print('561nm laser power must be positive')
             except TypeError:
                 print('561nm laser power set incorrectly')
             if self.lst2:
                 self.las2.write('SOUR:AM:STAT ON\r')
-                self.ard.write('STL 2 1\r')
             else:
                 self.las2.write('SOUR:AM:STAT OFF\r')
-                self.ard.write('STL 2 0\r')
         else:
             print('error: 561nm laser not connected')
 
@@ -437,9 +458,18 @@ class SPIMMM:
         # this will also cause an error if anything but a number comes in
         try:
             count = int(count)
+            print('hey')
             self.seriallock.acquire()
             self.ard.write('DAC ' + str(count) + '\r')
             self.seriallock.release()
+            # resp = self.ard.readline()  # ]
+            # print(resp)
+            # while resp!="o\n":
+            #     resp = self.ard.readline()#]
+            #     print(resp)
+            #print(resp)
+            # print('hey')
+
         except ValueError:
             print('error: mirror value not an int')
 
@@ -448,10 +478,11 @@ class SPIMMM:
     def stage(self, position):
         # the PI stage only takes arguments up to the nearest nanometer,
         # this will also cause an error if anything but a number comes in
+        # NOTE: for moves >10um, this operation takes at least 2.5s
         try:
             position = round(position, 6)
-            if abs(position) > 6.4:
-                print('error: position out of bounds')
+            if abs(position) > 6.495:
+                print('warning: position out of bounds')
                 return
             distance = abs(position - self.pos)
             self.pos = position
@@ -524,13 +555,24 @@ class SPIMMM:
     # move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def focus(self, location):
-        self.stage(location)
+        #the command order here is important! See Stage
         self.mirror(self.stm(location))
+        self.stage(location)
+
 
     # calculate mirror count for focus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def stm(self, stage_dist):
-        mirror_count = (stage_dist * self.slp) + self.off
+        self.off = int(self.posadj * self.slp)
+        mirror_count = int(((stage_dist - self.posadj)* self.slp) +4095)
+        print(mirror_count)
+        if mirror_count > 4095:
+            mirror_count = 4095
+            print('warning: mirror out of range')
+        if mirror_count < 0:
+            mirror_count = 0
+            print('warning: mirror out of range')
+
         return mirror_count
 
     # extrapolate conservative estimate of large stage movement time ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -547,8 +589,14 @@ class SPIMMM:
         self.seriallock.acquire()
         self.ard.write('RUN\r')
         self.seriallock.release()
-        resp = self.ard.readline()
-        print(resp)
+
+    #take multiple volumes in a row
+    def tkvm(self):
+        self.ard.flushInput()
+        self.seriallock.acquire()
+        self.ard.write('RUNM\r')
+        self.seriallock.release()
+
 
     # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -560,6 +608,7 @@ class SPIMMM:
         resp = resp + self.ard.readline()
         self.seriallock.release()
         print(resp)
+        return(resp)
 
     # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -680,6 +729,10 @@ class SPIMMM:
         self.sdh()
 
 
+
+
+
+
 # set the current channels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def setmag(self):
@@ -754,37 +807,7 @@ def haltcam(self):
             print('warning: flag not set')
 
 
-# take a volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-def actvol(self):
-    self.sendcfg()
-    print('microscope running')
-    self.volume_halt.clear()
-    while not self.volume_halt.isSet():
-        # self.seriallock.acquire()
-        self.tkv()
-        # self.seriallock.release()
-
-
-def startvol():
-    global volume
-    if volume.isAlive():
-        print('warning: thread already running')
-    else:
-        volume = threading.Thread(name='volume', target=actvol)
-        volume.start()
-
-
-def haltvol(self):
-    if not volume.is_alive():
-        print('warning: volume acquisition not running')
-    else:
-        if not self.volume_halt.isSet():
-            self.volume_halt.set()
-            print('volume acquisition halted')
-        else:
-            print('warning: flag not set')
 
 
 # run temperature control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -949,5 +972,34 @@ def halttest(self):
         if not self.test_halt.isSet():
             self.test_halt.set()
             print('test thread halted')
+        else:
+            print('warning: flag not set')
+
+# take volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def actvol(self):
+    self.sendcfg()
+    print('microscope running')
+    self.volume_halt.clear()
+    while not self.volume_halt.isSet():
+        # self.seriallock.acquire()
+        self.tkv()
+        # self.seriallock.release()
+
+def startvol(self):
+    global volume
+    if volume.isAlive():
+        print('warning: thread already running')
+    else:
+        volume = threading.Thread(name='volume', target=self.actvol)
+        volume.start()
+
+def haltvol(self):
+    if not volume.is_alive():
+        print('warning: volume acquisition not running')
+    else:
+        if not self.volume_halt.isSet():
+            self.volume_halt.set()
+            print('volume acquisition halted')
         else:
             print('warning: flag not set')

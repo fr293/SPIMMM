@@ -91,6 +91,7 @@ def frame(length):
     cfg.ard.write('FRM ' + str(length) + '\r')
 
 
+
 # move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def focus(location):

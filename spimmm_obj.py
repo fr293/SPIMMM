@@ -235,7 +235,7 @@ class SPIMMM:
 
     posadj = 6.1
 
-    off = int(posadj*slp)
+    off = int(posadj * slp)
 
     dup = 6.3
 
@@ -267,13 +267,11 @@ class SPIMMM:
 
     led = 0
 
-    camera2=4
+    camera2 = 4
 
-    num_frame=5
+    num_frame = 5
 
-    frame_period=500 #ms
-
-
+    frame_period = 500  # ms
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -358,29 +356,28 @@ class SPIMMM:
 
     def sendcfg(self):
 
-
-
         self.seriallock.acquire()
         self.ard.write(
-            'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16} {17} {18}\r'.format(str(self.smt),
-                                                                                                 str(self.frt),
-                                                                                                 str(self.exp),
-                                                                                                 str(self.htm),
-                                                                                                 str(self.hpw),
-                                                                                                 str(self.fnm),
-                                                                                                 str(self.cur1),
-                                                                                                 str(self.cur2),
-                                                                                                 str(self.cur3),
-                                                                                                 str(self.cur4),
-                                                                                                 str(self.led),
-                                                                                                 str(self.slp),
-                                                                                                 str(self.off),
-                                                                                                 str(self.dup),
-                                                                                                 str(self.dlo),
-                                                                                                 str(self.ste),
-                                                                                                    str(self.camera2),
-                                                                                                    str(self.num_frame),
-                                                                                                    str(self.frame_period)))
+            'SET {0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16} {17} {18}\r'.format(
+                str(self.smt),
+                str(self.frt),
+                str(self.exp),
+                str(self.htm),
+                str(self.hpw),
+                str(self.fnm),
+                str(self.cur1),
+                str(self.cur2),
+                str(self.cur3),
+                str(self.cur4),
+                str(self.led),
+                str(self.slp),
+                str(self.off),
+                str(self.dup),
+                str(self.dlo),
+                str(self.ste),
+                str(self.camera2),
+                str(self.num_frame),
+                str(self.frame_period)))
         self.seriallock.release()
 
     def readcfg(self):
@@ -467,7 +464,7 @@ class SPIMMM:
             # while resp!="o\n":
             #     resp = self.ard.readline()#]
             #     print(resp)
-            #print(resp)
+            # print(resp)
             # print('hey')
 
         except ValueError:
@@ -530,7 +527,6 @@ class SPIMMM:
         self.ard.write('ENG ' + '\r')
         self.seriallock.release()
 
-
     # disengage stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def disengage(self):
@@ -555,16 +551,15 @@ class SPIMMM:
     # move stage and mirror together ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def focus(self, location):
-        #the command order here is important! See Stage
+        # the command order here is important! See Stage
         self.mirror(self.stm(location))
         self.stage(location)
-
 
     # calculate mirror count for focus ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def stm(self, stage_dist):
         self.off = int(self.posadj * self.slp)
-        mirror_count = int(((stage_dist - self.posadj)* self.slp) +4095)
+        mirror_count = int(((stage_dist - self.posadj) * self.slp) + 4095)
         print(mirror_count)
         if mirror_count > 4095:
             mirror_count = 4095
@@ -590,13 +585,12 @@ class SPIMMM:
         self.ard.write('RUN\r')
         self.seriallock.release()
 
-    #take multiple volumes in a row
+    # take multiple volumes in a row
     def tkvm(self):
         self.ard.flushInput()
         self.seriallock.acquire()
         self.ard.write('RUNM\r')
         self.seriallock.release()
-
 
     # reset error state from the stage ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -608,7 +602,7 @@ class SPIMMM:
         resp = resp + self.ard.readline()
         self.seriallock.release()
         print(resp)
-        return(resp)
+        return resp
 
     # push heater parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -728,278 +722,250 @@ class SPIMMM:
         self.sendcfg()
         self.sdh()
 
+    # set the current channels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    def setmag(self):
+        self.seriallock.acquire()
+        self.ard.write('STM\r')
+        self.seriallock.release()
 
+    # set the white led intensity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    def setled(self):
+        self.seriallock.acquire()
+        self.ard.write('LON\r')
+        self.seriallock.release()
 
+    # read the magnet system state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# set the current channels ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def setmag(self):
-    self.seriallock.acquire()
-    self.ard.write('STM\r')
-    self.seriallock.release()
-
-
-# set the white led intensity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def setled(self):
-    self.seriallock.acquire()
-    self.ard.write('LON\r')
-    self.seriallock.release()
-
-
-# read the magnet system state ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def readmag(self):
-    self.seriallock.release()
-    self.ard.write('RDM\r')
-    self.seriallock.release()
-    resp = self.ard.readline()
-    if 'END' in resp:
-        return resp
-    else:
-        print('magnet poll error')
-
-
-# trigger the magnet controller on or off in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def trigmag(self, trigger=0):
-    self.seriallock.acquire()
-    if trigger:
-        self.ard.write('TRS\r')
-    else:
-        self.ard.write('KLS\r')
-    self.seriallock.release()
-
-
-# run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# note that the sleep parameter includes the exposure time
-
-def actcam(self, cam):
-    print('camera started')
-
-    self.camera_halt.clear()
-    while not self.camera_halt.isSet():
-        # self.seriallock.acquire()
-        self.frame(cam, self.exp)
-        # self.seriallock.release()
-        time.sleep(self.frt - (0.001 * self.exp))
-
-
-def startcam():
-    global camera
-    if camera.isAlive():
-        print('warning: thread already running')
-    else:
-        camera = threading.Thread(name='camera', target=actcam)
-        camera.start()
-
-
-def haltcam(self):
-    if not camera.isAlive():
-        print('warning: camera not running')
-    else:
-        if not self.camera_halt.isSet():
-            self.camera_halt.set()
-            print('camera acquisition halted')
+    def readmag(self):
+        self.seriallock.release()
+        self.ard.write('RDM\r')
+        self.seriallock.release()
+        resp = self.ard.readline()
+        if 'END' in resp:
+            return resp
         else:
-            print('warning: flag not set')
+            print('magnet poll error')
 
+    # trigger the magnet controller on or off in software ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-
-
-# run temperature control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def acttempcont(self):
-    if not self.temppoll.isAlive():
-        starttemppoll(self)
-
-    while not self.data_in.isSet():
-        print('waiting for data')
-        time.sleep(0.1)
-
-    print('temperature control running')
-    self.tempcont_halt.clear()
-    while not self.tempcont_halt.isSet():
-        # self.seriallock.acquire()
-        self.clt()
-        # self.seriallock.release()
-        time.sleep(self.ttc)
-
-
-def starttempcont(self):
-    if self.tempcont.isAlive():
-        print('warning: thread already running')
-    else:
-        self.ers = 0
-        tempcont = threading.Thread(name='tempcont', target=acttempcont)
-        tempcont.start()
-
-
-def halttempcont(self):
-    if not self.tempcont.isAlive():
-        print('warning: temperature control not running')
-    else:
-        if not self.tempcont_halt.isSet():
-            self.tempcont_halt.set()
-            self.temppoll_halt.set()
-            print('temperature control halted')
+    def trigmag(self, trigger=0):
+        self.seriallock.acquire()
+        if trigger:
+            self.ard.write('TRS\r')
         else:
-            print('warning: flag not set')
+            self.ard.write('KLS\r')
+        self.seriallock.release()
 
-        # shut the heater controller down
-        self.htm = 0
-        self.fnm = 0
-        # self.seriallock.acquire()
-        self.sendcfg()
-        self.sdh()
-        # self.seriallock.release()
+    # run camera ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # note that the sleep parameter includes the exposure time
 
+    def actcam(self, cam):
+        print('camera started')
 
-# run temperature logging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.camera_halt.clear()
+        while not self.camera_halt.isSet():
+            # self.seriallock.acquire()
+            self.frame(cam, self.exp)
+            # self.seriallock.release()
+            time.sleep(self.frt - (0.001 * self.exp))
 
-def acttemplog(self):
-    if not self.temppoll.isAlive():
-        starttemppoll(self)
-
-    while not self.data_in.isSet():
-        print('waiting for data')
-        time.sleep(0.1)
-
-    print('temperature logging running')
-    timestr = time.strftime('%Y%m%d-%H%M%S')
-    contstring = 'Kp' + '_' + str(self.tkp) + '_' + 'Ki' + '_' + str(self.tki)
-    templogname = 'templog_' + timestr + '_' + contstring + '.csv'
-    templogname = 'templog/' + templogname
-    templogfile = open(templogname, 'a')
-    templogfile.write('Device,,Mode,,PWM,,Temp,,\n')
-
-    self.templog_halt.clear()
-    while not self.templog_halt.isSet():
-        templogfile.write(self.tcr.rstrip() + ',' + 'SET TEMP' + ',' + str(self.tem) + ',' + 'SYS TIME' + ','
-                          + str(time.time()) + '\n')
-        time.sleep(self.lgp)
-    templogfile.close()
-
-
-def starttemplog(self):
-    if self.templog.isAlive():
-        print('warning: thread already running')
-    else:
-        templog = threading.Thread(name='templog', target=acttemplog)
-        templog.start()
-
-
-def halttemplog(self):
-    if not self.templog.isAlive():
-        print('warning: temperature logging not running')
-    else:
-        if not self.templog_halt.isSet():
-            self.templog_halt.set()
-            self.temppoll_halt.set()
-            print('temperature logging halted')
+    def startcam(self):
+        if self.camera.isAlive():
+            print('warning: thread already running')
         else:
-            print('warning: flag not set')
+            self.camera = threading.Thread(name='camera', target=self.actcam)
+            self.camera.start()
 
+    def haltcam(self):
+        if not self.camera.isAlive():
+            print('warning: camera not running')
+        else:
+            if not self.camera_halt.isSet():
+                self.camera_halt.set()
+                print('camera acquisition halted')
+            else:
+                print('warning: flag not set')
 
-# poll temperature control board ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def acttemppoll(self):
-    if not self.ard.isOpen():
-        print('warning: port is not open')
-        print('attempting to open')
-        try:
-            self.open_ports()
-            print('ports opened successfully')
-        except UserWarning:
-            print('ports unreachable, releasing thread locks in 2 seconds')
-            time.sleep(2)
+    # run temperature control ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def acttempcont(self):
+        if not self.temppoll.isAlive():
+            self.starttemppoll()
+
+        while not self.data_in.isSet():
+            print('waiting for temperature controller')
+            time.sleep(0.5)
+
+        print('temperature controller running')
+        self.tempcont_halt.clear()
+        while not self.tempcont_halt.isSet():
+            self.seriallock.acquire()
+            self.clt()
             self.seriallock.release()
-            return
+            time.sleep(self.ttc)
 
-    self.temppoll_halt.clear()
-    while not self.temppoll_halt.isSet():
-        # self.seriallock.acquire()
-        self.tcr = self.rdh()
-        # self.seriallock.release()
-        self.data_in.set()
-        time.sleep(self.plp)
-    self.data_in.clear()
-
-
-def starttemppoll(self):
-    if self.temppoll.isAlive():
-        print('warning: thread already running')
-    else:
-        self.temppoll = threading.Thread(name='temppoll', target=acttemppoll)
-
-        self.temppoll.start()
-
-
-def halttemppoll(self):
-    if not self.temppoll.isAlive():
-        print('warning: temperature polling not running')
-    else:
-        if not self.temppoll_halt.isSet():
-            self.temppoll_halt.set()
-            print('temperature polling halted')
+    def starttempcont(self):
+        if self.tempcont.isAlive():
+            print('warning: thread already running')
         else:
-            print('warning: flag not set')
+            self.ers = 0
+            self.tempcont = threading.Thread(name='tempcont', target=self.acttempcont)
+            self.tempcont.start()
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-def acttest(self):
-    self.test_halt.clear()
-    while not self.test_halt.isSet():
-        print('test thread running')
-        time.sleep(1)
-
-
-def starttest(self):
-    if self.test.isAlive():
-        print('warning: thread already running')
-    else:
-        test = threading.Thread(name='test', target=acttest)
-        test.start()
-
-
-def halttest(self):
-    if not self.test.isAlive():
-        print('warning: test thread not running')
-    else:
-        if not self.test_halt.isSet():
-            self.test_halt.set()
-            print('test thread halted')
+    def halttempcont(self):
+        if not self.tempcont.isAlive():
+            print('warning: temperature control not running')
         else:
-            print('warning: flag not set')
+            if not self.tempcont_halt.isSet():
+                self.tempcont_halt.set()
+                self.temppoll_halt.set()
+                print('temperature control halted')
+            else:
+                print('warning: flag not set')
 
-# take volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # shut the heater controller down
+            self.htm = 0
+            self.fnm = 0
+            self.seriallock.acquire()
+            self.sendcfg()
+            self.sdh()
+            self.seriallock.release()
 
-def actvol(self):
-    self.sendcfg()
-    print('microscope running')
-    self.volume_halt.clear()
-    while not self.volume_halt.isSet():
-        # self.seriallock.acquire()
-        self.tkv()
-        # self.seriallock.release()
+    # run temperature logging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def startvol(self):
-    global volume
-    if volume.isAlive():
-        print('warning: thread already running')
-    else:
-        volume = threading.Thread(name='volume', target=self.actvol)
-        volume.start()
+    def acttemplog(self):
+        if not self.temppoll.isAlive():
+            self.starttemppoll()
 
-def haltvol(self):
-    if not volume.is_alive():
-        print('warning: volume acquisition not running')
-    else:
-        if not self.volume_halt.isSet():
-            self.volume_halt.set()
-            print('volume acquisition halted')
+        while not self.data_in.isSet():
+            print('waiting for temperature controller')
+            time.sleep(0.1)
+
+        print('temperature logging running')
+        timestr = time.strftime('%Y%m%d-%H%M%S')
+        contstring = 'Kp' + '_' + str(self.tkp) + '_' + 'Ki' + '_' + str(self.tki)
+        templogname = 'templog_' + timestr + '_' + contstring + '.csv'
+        templogname = 'templog/' + templogname
+        templogfile = open(templogname, 'a')
+        templogfile.write('Device,,Mode,,PWM,,Temp,,\n')
+
+        self.templog_halt.clear()
+        while not self.templog_halt.isSet():
+            templogfile.write(self.tcr.rstrip() + ',' + 'SET TEMP' + ',' + str(self.tem) + ',' + 'SYS TIME' + ','
+                              + str(time.time()) + '\n')
+            time.sleep(self.lgp)
+        templogfile.close()
+
+    def starttemplog(self):
+        if self.templog.isAlive():
+            print('warning: thread already running')
         else:
-            print('warning: flag not set')
+            templog = threading.Thread(name='templog', target=self.acttemplog)
+            templog.start()
+
+    def halttemplog(self):
+        if not self.templog.isAlive():
+            print('warning: temperature logging not running')
+        else:
+            if not self.templog_halt.isSet():
+                self.templog_halt.set()
+                self.temppoll_halt.set()
+                print('temperature logging halted')
+            else:
+                print('warning: flag not set')
+
+    # poll temperature control board ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def acttemppoll(self):
+        if not self.ard.isOpen():
+            print('warning: port is not open')
+            print('attempting to open')
+            try:
+                self.open_ports()
+                print('ports opened successfully')
+            except UserWarning:
+                print('ports unreachable, releasing thread locks in 2 seconds')
+                time.sleep(2)
+                self.seriallock.release()
+                return
+
+        self.temppoll_halt.clear()
+        while not self.temppoll_halt.isSet():
+            self.seriallock.acquire()
+            self.tcr = self.rdh()
+            self.seriallock.release()
+            self.data_in.set()
+            time.sleep(self.plp)
+        self.data_in.clear()
+
+    def starttemppoll(self):
+        if self.temppoll.isAlive():
+            print('warning: thread already running')
+        else:
+            self.temppoll = threading.Thread(name='temppoll', target=self.acttemppoll)
+
+            self.temppoll.start()
+
+    def halttemppoll(self):
+        if not self.temppoll.isAlive():
+            print('warning: temperature polling not running')
+        else:
+            if not self.temppoll_halt.isSet():
+                self.temppoll_halt.set()
+                print('temperature polling halted')
+            else:
+                print('warning: flag not set')
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def acttest(self):
+        self.test_halt.clear()
+        while not self.test_halt.isSet():
+            print('test thread running')
+            time.sleep(1)
+
+    def starttest(self):
+        if self.test.isAlive():
+            print('warning: thread already running')
+        else:
+            test = threading.Thread(name='test', target=self.acttest)
+            test.start()
+
+    def halttest(self):
+        if not self.test.isAlive():
+            print('warning: test thread not running')
+        else:
+            if not self.test_halt.isSet():
+                self.test_halt.set()
+                print('test thread halted')
+            else:
+                print('warning: flag not set')
+
+    # take volume ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    def actvol(self):
+        self.sendcfg()
+        print('microscope running')
+        self.volume_halt.clear()
+        while not self.volume_halt.isSet():
+            self.seriallock.acquire()
+            self.tkv()
+            self.seriallock.release()
+
+    def startvol(self):
+        if self.volume.isAlive():
+            print('warning: thread already running')
+        else:
+            self.volume = threading.Thread(name='volume', target=self.actvol)
+            self.volume.start()
+
+    def haltvol(self):
+        if not self.volume.is_alive():
+            print('warning: volume acquisition not running')
+        else:
+            if not self.volume_halt.isSet():
+                self.volume_halt.set()
+                print('volume acquisition halted')
+            else:
+                print('warning: flag not set')

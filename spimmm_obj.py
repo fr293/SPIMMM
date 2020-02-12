@@ -32,6 +32,8 @@ import threading
 #
 # tem - temperature setpoint in degrees C
 #
+# tempm - measured temperature in degrees C
+#
 # ttc - the period of the control loop in seconds
 #
 # tkp - proportional control constant for the temperature control module (heating mode)
@@ -103,6 +105,8 @@ import threading
 # templog - signals to the thread that runs the temperature logger
 #
 # temppoll - signals to the thread that runs the heater board poll
+#
+# volume_running - signals that a volume is running
 #
 # functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -195,7 +199,7 @@ class SPIMMM:
         self.laser_power()
 
     # variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    dbg = True
+    dbg = False
 
     smt = 20
 
@@ -212,6 +216,8 @@ class SPIMMM:
     fnm = 0
 
     tem = 17
+
+    tempm = 20.0
 
     ttc = 1
 
@@ -307,6 +313,8 @@ class SPIMMM:
     test_halt = threading.Event()
 
     data_in = threading.Event()
+
+    volume_running = threading.Event()
 
     camera = threading.Thread()
 
@@ -455,7 +463,7 @@ class SPIMMM:
         # this will also cause an error if anything but a number comes in
         try:
             count = int(count)
-            print('hey')
+            #print('hey')
             self.seriallock.acquire()
             self.ard.write('DAC ' + str(count) + '\r')
             self.seriallock.release()
@@ -654,12 +662,12 @@ class SPIMMM:
         position[0] = position[0] + 1
         tempstring = paramstring[position[0]:position[1]]
         if "." in tempstring:
-            tempm = float(tempstring)
+            self.tempm = float(tempstring)
         else:
-            tempm = int(tempstring)
+            self.tempm = int(tempstring)
 
         # calculate the error and set the parameters
-        temperror = self.tem - tempm
+        temperror = self.tem - self.tempm
 
         # this block checks to see if the controller is on target by checking if the temperature has gone out of
         # range recently
@@ -708,7 +716,7 @@ class SPIMMM:
             self.fnm = 1
 
         if self.dbg:
-            print('demand temperature: ' + str(self.tem) + ', ' + 'measured temperature: ' + str(tempm))
+            print('demand temperature: ' + str(self.tem) + ', ' + 'measured temperature: ' + str(self.tempm))
             print('proportional signal: ' + str(temperror * self.tkp) + ', ' + 'integral signal: '
                   + str((self.ers * self.tki)))
             print('signal: ' + str(signal) + ', ' + 'heater power: ' + str(self.hpw) + ', ' + 'heater mode: ' + str(
@@ -766,9 +774,7 @@ class SPIMMM:
 
         self.camera_halt.clear()
         while not self.camera_halt.isSet():
-            # self.seriallock.acquire()
             self.frame(cam, self.exp)
-            # self.seriallock.release()
             time.sleep(self.frt - (0.001 * self.exp))
 
     def startcam(self):
@@ -801,9 +807,7 @@ class SPIMMM:
         print('temperature controller running')
         self.tempcont_halt.clear()
         while not self.tempcont_halt.isSet():
-            self.seriallock.acquire()
             self.clt()
-            self.seriallock.release()
             time.sleep(self.ttc)
 
     def starttempcont(self):
@@ -820,18 +824,16 @@ class SPIMMM:
         else:
             if not self.tempcont_halt.isSet():
                 self.tempcont_halt.set()
-                self.temppoll_halt.set()
                 print('temperature control halted')
             else:
                 print('warning: flag not set')
 
-            # shut the heater controller down
-            self.htm = 0
-            self.fnm = 0
-            self.seriallock.acquire()
-            self.sendcfg()
-            self.sdh()
-            self.seriallock.release()
+        # shut the heater controller down
+        self.htm = 0
+        self.fnm = 0
+        self.sendcfg()
+        self.sdh()
+        self.temppoll_halt.set()
 
     # run temperature logging ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -892,9 +894,7 @@ class SPIMMM:
 
         self.temppoll_halt.clear()
         while not self.temppoll_halt.isSet():
-            self.seriallock.acquire()
             self.tcr = self.rdh()
-            self.seriallock.release()
             self.data_in.set()
             time.sleep(self.plp)
         self.data_in.clear()
@@ -949,9 +949,7 @@ class SPIMMM:
         print('microscope running')
         self.volume_halt.clear()
         while not self.volume_halt.isSet():
-            self.seriallock.acquire()
             self.tkv()
-            self.seriallock.release()
 
     def startvol(self):
         if self.volume.isAlive():

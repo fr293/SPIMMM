@@ -463,12 +463,13 @@ def update_image():
 def set_directory():
     global directory
     new_directory = filedialog.askdirectory(initialdir=directory, title="Set saving directory")
-    if len(new_directory) == 0:
+    if not new_directory:
         print('Warning. Directory unchanged...')
         return False
-    directory = new_directory
-    print('Saving default directory is now %s' % directory)
-    return True
+    else:
+        directory = new_directory
+        print('Saving default directory is now %s' % directory)
+        return True
 
 
 def save_path(autoexp):
@@ -492,11 +493,12 @@ def save_path(autoexp):
     filepath = filedialog.asksaveasfilename(initialfile=filename, initialdir=filepath, title='Select file',
                                             filetypes=filetypes)  # , defaultextension='.tif'
     # Exit if save file operation is aborted
-    if len(filepath) == 0:
+    if not filepath:
         print('Error: empty filepath')
         return False
-    filepath = os.path.splitext(filepath)[0]  # delete file extension if present
-    return filepath
+    else:
+        filepath = os.path.splitext(filepath)[0]  # delete file extension if present
+        return filepath
 
 
 # This function saves the current frame once called upon
@@ -755,6 +757,7 @@ def auto_cfg():
     return filepath, temperature
 
 
+# Save volumes from automated experiments
 def save_auto(image_queue, time_queue, start_queue, filepath, start_pos, distance_steps, frame_number, volume_number,
               temperature):
     start_time = start_queue.get()
@@ -786,12 +789,14 @@ def progress(filepath):
         time.sleep(0.9)
 
 
+# Automated experiment main function
 def auto():
     offlaser()
     # Make config
     filepath, temp = auto_cfg()
     if isinstance(filepath, bool):
         return False  # breaks if incomplete
+    print('Perform experiments: %s' % filepath)
 
     start_pos = spim.pos
     frame_number = 41
@@ -862,6 +867,11 @@ def auto():
 def read_temp():
     if monitor_temp:
         readout_temperature.set(spim.tempm)
+        # with open(tempfile + '.csv', 'ab') as f:
+        #     writer = csv.writer(f)
+        #     temp_time = time.time() - start_time
+        #     writer.writerow([temp_time, spim.tempm])  # , dequeued_temp
+        # window.after(2000, lambda: read_temp(tempfile, start_time))
         window.after(2000, read_temp)
         return True
     else:
@@ -874,6 +884,10 @@ def start_temp():
     if temperature_control.get() == 0:
         temperature_control.set(1)
         start_temperature_radiobutton.update()
+
+    # tempfile = save_path(False)
+    # start_time = time.time()
+
     spim.tem = float(target_temperature_input.get())
     print('Start temperature controller, target set to %.1f C ...' % spim.tem)
     # Start temperature controller
@@ -881,6 +895,7 @@ def start_temp():
 
     global monitor_temp
     monitor_temp = True
+    # read_temp(tempfile, start_time)
     read_temp()
 
 
